@@ -1,97 +1,116 @@
-# TODO: rework this to make it a proper R package Shiny app
-library(learnitgrid)
 
-# For now, you must hardcode the correction folder to use here...
-## Special case: default_correction <- "A01Ga_22M_biology_challenge_2022-10-09"
-#default_correction <- "A01Ia_22M_covid19_2022-10-07"
-#default_correction <- "A02Ga_22M_describe_charts_2022-10-17"
-#default_correction <- "A02Ia_22M_scatterplot_2022-10-17"
-#default_correction <- "A04Ia_22M_graphe_avance_2022-02-13"
-#default_correction <- "A03Ga_22M_urchin_2022-02-18"
-#default_correction <- "B01Ib_22M_abalone_2022-10-17"
-#default_correction <- "B02Ib_22M_achatina_2022-02-11"
-#default_correction <- "B02Ga_22M_urchin_2022-02-22"
-#default_correction <- "B03Ia_22M_ovocyte_2022-02-19"
-#default_correction <- "B04Gb_22M_bacterial_growth_2022-03-22"
-#default_correction <- "B05Ia_22M_abies_balsamea_2022-12-07"
-#default_correction <- "C01Ia_22M_ml1_2022-02-22"
-#default_correction <- "C05Gb_22M_ts_adv_2023-01-10"
-# Q2
-default_correction <- "A08Ia_22M_pea_2023-03-09"
-#default_correction <- "A08Ga_22M_urchin_2022-06-17"
-#default_correction <- "A09Ia_22M_cardiovascular_2022-05-31"
-#default_correction <- "A11Ia_22M_anova2_2022-05-31"
-#default_correction <- "A12Ia_22M_correlation_2022-05-31"
-#default_correction <- "B05Ia_22M_ligurian_sea_2022-05-31"
-#default_correction <- "B06Ia_22M_fish_market_2022-05-31"
-#default_correction <- "B07Ia_22M_acp_afc_2022-05-31"
-#default_correction <- "B08Ia_22M_mfa_2022-05-31"
-app <- NULL
-#app <- "A08Ia_pea"
-repo <- default_correction # Could possibly be different
-message("Correction Science des Données Biologiques démarrée... pour '",
-  default_correction, "', soyez patient.")
+# Initialization ----------------------------------------------------------
 
-# This section is here to ease debugging...
-#setwd("/Volumes/Cuttlefish3/sdd-projects/") # If not debugging, leave commented
-default_item <- "" # Only change this for quicker debugging purposes
-default_grid <- "" # Only change this for quicker debugging purposes
-# Note that during the execution of the app, these two variables contain the
-# context for, respectively, the table by criterion (default_item), or the table
-# by grid (default_grid)
+library("learnitgrid")
 
 
 # Global constants --------------------------------------------------------
 
-github_url        <- "https://github.com/BioDataScience-Course" # GitHub URL
-branch            <- "master" # The branch to use in the git repo
-max_lines         <- 20 # Maximum number of lines to place in content
+# Absolute path to the data directory, use environment variable on RSConnect
+# and default value (unset = ) locally
+data_dir          <- Sys.getenv("LEARNITGRID_DATA_DIR",
+                       unset = getOption("learnintgrid.data.dir",
+                         path(getwd(), "www")))
+root_dir        <- dir_path_check(data_dir)
 
-root_dir          <- dir_path_check("www")
-base_corr_dir     <- dir_path_check(root_dir, "corrections")
-base_templ_dir    <- dir_path_check(root_dir, "templates")
-base_repos_dir    <- dir_path_check(root_dir, "repos")
+# Possibly input these values from a learnitgrid_config.R either in root_dir
+# or (if not present) in www
+config_file <- path(root_dir, "learnitgrid_config.R")
+if (!file_exists(config_file))
+  config_file <- path("www", "learnitgrid_config.R")
+if (file_exists(config_file)) {
+  message("Sourcing config file ", config_file, "...")
+  source(config_file) #, echo = TRUE)
+} else {
+  message("No config file ", config_file, " found!")
+}
 
-# TODO: this could be located possibly elsewhere and with a different name
-repos_file        <- file_path_check(root_dir, "repositories_22.csv")
-assign_file       <- file_path_check(root_dir, "assignments_22.csv")
+# Subdirectories
+if (!exists("base_corr_dir"))
+  base_corr_dir   <- dir_path_check(root_dir,
+                       getOption("learnitigrid.corrections", "corrections"))
+if (!exists("base_templ_dir"))
+  base_templ_dir  <- dir_path_check(root_dir,
+                       getOption("learnitigrid.templates", "templates"))
+if (!exists("base_repos_dir"))
+  base_repos_dir  <- dir_path_check(root_dir,
+                       getOption("learnitigrid.repos", "repos"))
+# Shiny apps can only share files relatives to its www subdir. So, we (re)create
+# simlinks to these three folders (but do not delete if it is an existing file)
+link_to_www(base_corr_dir, "corr")
+link_to_www(base_templ_dir, "temp")
+link_to_www(base_repos_dir, "repo")
 
-default_highlight <- FALSE # This is nice, but slow => better to leave it FALSE
+# TODO: this could be located possibly in a database too (then create a
+# snapshot in a file in learnitgrid_config.R?)
+if (!exists("repos_filename"))
+  repos_filename  <- Sys.getenv("LEARNITGRID_REPOS",
+                       unset = "repositories.csv")
+if (!exists("assign_filename"))
+  assign_filename <- Sys.getenv("LEARNITGRID_ASSIGN",
+                       unset = "assignments.csv")
+
+if (!exists("github_org"))
+  github_org      <- Sys.getenv("LEARNITGRID_ORG",
+                       unset = getOption("learnitgrid.org",
+                         "learnitgrid-test"))
+if (!exists("github_url"))
+  github_url      <- paste0("https://github.com/", github_org)
+# TODO: the branch should be deduced from the set name (a branch or a date)
+# ... or use the default branch (note: master is also OK here)
+if (!exists("branch"))
+  branch          <- getOption("learnitgrid.branch", "main")
+
+# Some more info about courses (no data by default)
+if (!exists("courses_aliases"))
+  courses_aliases <- NULL   # The aliases in tnhe dropdown box for your courses
+if (!exists("classroom_urls")) {
+  classroom_urls  <- rep("https://classroom.github.com/classrooms/???/", 26L)
+  names(classroom_urls) <- LETTERS # Default URLS for classrooms => unknown
+}
+
+# TODO: make these two options in the UI
+# Maximum number of lines to place in content
+if (!exists("max_lines"))
+  max_lines       <- getOption("learnitgrid.maxlines", 20L)
+# This one is nice, but slow => better to leave it FALSE
+if (!exists("default_highlight"))
+  default_highlight <- getOption("learnitgrid.highlight", FALSE)
+
+# Default options for stat_git()
+if (!exists("exclude_authors"))
+  exclude_authors <- "github-classroom[bot]"
+if (!exists("git_stats_type"))
+  git_stats_type  <- "all"
+if (!exists("git_stats_tz"))
+  git_stats_tz    <- "UTC" # Your own tz, e.g., "Europe/Paris"
 
 
 # Global objects ----------------------------------------------------------
 
+repos_file        <- file_path_check(root_dir, repos_filename)
 repositories      <- read(repos_file)
+assign_file       <- file_path_check(root_dir, assign_filename)
 assignments       <- read(assign_file)
-order             <- NULL # The order for the table by criterion
-context           <- create_context(correction = default_correction,
-  base_corr_dir = base_corr_dir, base_templ_dir = base_templ_dir,
-  base_repos_dir = base_repos_dir, repositories = repositories,
-  assignments = assignments, repo = repo, app = app,
-  github_url = github_url, branch = branch) # Context object for
-# selected project/correction set
+order             <- NULL     # The order for the table by criterion
+
+course_dirs <- dir_ls(base_corr_dir, type = "directory")
+if (!length(course_dirs))
+  stop("Il n'y a pas encore de grilles de correction disponibles. ",
+    "Créez-en avant de relancer cette application...")
+courses <- basename(course_dirs)
+courses_list <- courses
+names(courses_list) <- courses
+courses_list <- c(courses_aliases,
+  courses_list[!courses_list %in% courses_aliases])
+courses_list <- courses_list[courses_list %in% courses]
+
 # TODO: get login of user if app is run in RStudio Connect
 default_evaluator <-  try(gh_whoami()$login, silent = TRUE)
 if (inherits(default_evaluator, 'try-error') || is.null(default_evaluator)) {
   default_evaluator <- ""
 } else {
   default_evaluator <- as.character(default_evaluator)[1]
-}
-
-# Initial values for default_item and default_grid
-# If default_item is already defined (debugging purpose), check it is correct
-if (default_item != "") {
-  if (!default_item %in% context$templ_corrs$criterion)
-    stop("Item '", default_item, "' non trouvé dans la grille d'évaluation.")
-} else {# Use first item by default
-  default_item <- context$templ_corrs$criterion[1]
-}
-# If default_grid is already defined (debugging purpose), check it is correct
-if (default_grid != "") {
-  if (!default_grid %in% context$repos_names)
-    stop("Item '", default_grid, "' non trouvé dans les grilles de correction.")
-} else {# Use first item by default
-  default_grid <- context$repos_names[1]
 }
 
 # Sort the table according to content similarities
@@ -111,12 +130,11 @@ sort_table <- function(x, is_content = attr(x, "is_content")) {
     dissim <- as.dist(dissim_mat)
     # Cluster this dist object, in order to sort items by dissimilarities
     cl <- flashClust::hclust(dissim, method = "complete")
-    #plot(cl) # TODO: we could display this, e.g., below the table or in a tab?
+    #plot(cl) # TODO: we could display this in a plot above the grid
     # We are only interested by order in cl
     order <- cl$order
     # Reorder x accordingly
     x <- x[order, ]
-
   } else {
     order <- 1:nrow(x) # Initial order simply
   }
@@ -125,105 +143,179 @@ sort_table <- function(x, is_content = attr(x, "is_content")) {
   x
 }
 
-# In debug mode, run until here and test populate_table()
-# By criterion:
-#populate_table(items = default_item, grids = "all", context = context)
-# By grid:
-#populate_table(items = "all", grids = default_grid, context = context)
 
+# The Shiny app UI --------------------------------------------------------
 
-# The Shiny application ---------------------------------------------------
-
-shinyUI <- fluidPage(
-  #shinyFeedback::useShinyFeedback(),
-  #titlePanel(paste("Correction de", context$assignment)),
-  #sidebarLayout(position = "right",
-  #  sidebarPanel("Sidepanel items"),
-  #mainPanel(
-
-  fluidRow(
-    tags$head(
-      tags$link(rel = "stylesheet", type = "text/css", href = "highlight.css")
-    ),
-    column(12,
-      h3(paste("Correction de", context$assignment)),
-      textInput("evaluator", "Identifiant (login GitHub) :",
-        value = default_evaluator, width = "70%",
-        placeholder = "Votre login GitHub comme évaluateur"),
-      checkboxInput("highlight", "Syntaxe colorée pour le code R (lent)",
-        default_highlight),
-      #p("Type de projet:", strong(assign_infos$type),
-      #  paste0("(", assign_infos$acad_year, " ", assign_infos$term, ")")),
-      tabsetPanel(
-        tabPanel("Par critère",
-          selectInput("item", "Critère :", context$templ_corrs$criterion,
-            multiple = FALSE, selectize = TRUE, size = NULL, width = '70%',
-            selected = default_item),
-          br(),
-          verbatimTextOutput("last_edited"),
-          br(),
-          DT::dataTableOutput('correction_table_criterion', width = "100%")
-        ),
-        tabPanel("Par grille",
-          selectInput("grid", "Grille critériée :", context$repos_names,
-            multiple = FALSE, selectize = TRUE, size = NULL, width = '70%',
-            selected = default_grid),
-          br(),
-          verbatimTextOutput("last_edited_grid"),
-          br(),
-          DT::dataTableOutput('correction_table_grid', width = "100%")
-        )
-      )#,
-
-      # Not used yet!
-      #br(),
-      #actionButton("reset", "Reset cell edited"),
-      #actionButton("viewBtn", "View"),
-      #actionButton("saveBtn", "Save")
-    )
-  )
-
-  #)
-  #)
+header <- dashboardHeader(
+  title =  a("Learnitgrid",
+    href = "https://github.com/SciViews/learnitgrid"),# style = "color:black;"),
+  titleWidth = 350,
+  tags$li(a(
+    onclick = "onclick=window.open('https://wp.sciviews.org/')",
+    href = NULL, icon("book"), title = "Cours", style = "cursor:pointer;"),
+    class = "dropdown"),
+  tags$li(a(
+    onclick = "onclick=window.open('https://github.com/BioDataScience-Course')",
+    href = NULL, icon("github"), title = "GitHub", style = "cursor:pointer;"),
+    class = "dropdown")
 )
 
-# The modal dialog box prompting for evaluator login and correction set
-#modal_startup <- modalDialog(
-#  "Veuillez vérifier votre identité et sélectionner un set de correction",
-#  title = "Correction Science des Données Biologiques",
-#  footer = tagList(
-#    actionButton("cancel", "Annuler"),
-#    actionButton("ok", "Continuer", class = "btn btn-primary btn-lg")
-#  )
-#)
+sidebar <- dashboardSidebar(width = 350,
+  selectInput("course", label = "Cours :", choices = names(courses_list),
+    width = 325),
+  selectInput("correction", label = "Set de correction :", choices = NULL,
+    width = 325),
+  textInput("evaluator", "Evaluateur (login GitHub) :",
+    value = default_evaluator, width = 325,
+    placeholder = "Votre login (Github) comme évaluateur"),
+  textOutput("evaluator_check"),
+  hr(),
+  sidebarMenu(
+    menuItem("Résumé", tabName = "summary",
+      icon = icon("calculator")),
+    menuItem("Correction par grille", tabName = "correction_grid",
+      icon = icon("tasks")),
+    menuItem("Correction par critère", tabName = "correction_criterion",
+      icon = icon("check-square"))
+  )#,
+  #hr(),
+  #downloadButton("downloadData1", "Generate report")
+)
 
-#js <- c(
-#  "correction_table_criterion.on('key',",
-#  "  function(e, datatable, key, cell, originalEvent){",
-#  "  var targetName = originalEvent.target.localName;",
-#  "  if(key == 13 && targetName == 'body'){",
-#  "    $(cell.node()).trigger('dblclick.dt');",
-#  "  }",
-#  "});",
-#  "correction_table_criterion.on('keydown', function(e){",
-#  "  var keys = [9,13,37,38,39,40];",
-#  "  if(e.target.localName == 'input' && keys.indexOf(e.keyCode) > -1){",
-#  "    $(e.target).trigger('blur');",
-#  "  }",
-#  "});",
-#  "correction_table_criterion.on('key-focus',",
-#  "  function(e, datatable, cell, originalEvent){",
-#  "  var targetName = originalEvent.target.localName;",
-#  "  var type = originalEvent.type;",
-#  "  if(type == 'keydown' && targetName == 'input'){",
-#  "    if([9,37,38,39,40].indexOf(originalEvent.keyCode) > -1){",
-#  "      $(cell.node()).trigger('dblclick.dt');",
-#  "    }",
-#  "  }",
-#  "});"
-#)
+body <- dashboardBody(
+  #shinybusy::add_busy_spinner(spin = "fading-circle"),
+  tags$head(tags$base(target = "_blank")),
+  tabItems(
+    tabItem(tabName = "summary",
+      tags$h2(icon("calculator"), " Résumé"),
+      h5(textOutput("last_summary")),
+      fluidRow(
+        infoBoxOutput("correction_set1"),
+        infoBoxOutput("template_link1"),
+        infoBoxOutput("evaluator_name1")
+      ),
+      fluidRow(
+        valueBoxOutput("n_students", width = 3),
+        valueBoxOutput("n_grids", width = 3),
+        valueBoxOutput("n_success", width = 3),
+        valueBoxOutput("mean", width = 3),
+      ),
+      fluidRow(
+        downloadButton("downloadcsv", "CSV", icon = NULL,
+          style = "margin-left:15px;" ),
+        downloadButton("downloadexcel", "Excel", icon = NULL),
+        actionButton("refresh", "Rafraichir", class = "btn-info")
+      ),
+      br(),
+      fluidRow(
+        box(title = "Notes de la classe", status = "info",
+          shinycssloaders::withSpinner(plotOutput("score_plot"))),
+        box(title = "Détails par étudiant", status = "info",
+          shinycssloaders::withSpinner(dataTableOutput("summary_tab")))
+      )
+    ),
 
-shinyServer <- function(input, output) {
+    tabItem(tabName = "correction_grid",
+      tags$h2(icon("tasks"), " Correction par grille"),
+      h5(textOutput("to_corresct_per_grid")),
+      fluidRow(
+        infoBoxOutput("correction_set2"),
+        infoBoxOutput("template_link2"),
+        infoBoxOutput("evaluator_name2")
+      ),
+      fluidRow(
+        box(title = "Progression du projet", status = "info", width = 12,
+          collapsible = TRUE, collapsed = TRUE,
+          selectInput("contri_ext", label = "Type de fichiers",
+            choices = c("Rmd", "R"), multiple = TRUE, selected = c("Rmd", "R")),
+          radioButtons("contri_split", label = "",
+            choices = c("unifier", "séparer"),
+            selected = "unifier", inline = TRUE),
+          #plotly::plotlyOutput("contri_plot"),
+          plotOutput("contri_plot"),
+        )
+      ),
+      fluidRow(
+        box(title = "Grille critériée", status = "info", width = 12,
+          selectInput("grid", "Grille critériée :", label = NULL,
+            multiple = FALSE, selectize = TRUE, size = NULL, width = "50%",
+            selected = NULL),
+          #verbatimTextOutput("last_edited_grid"),
+          #br(),
+          shinycssloaders::withSpinner(
+            DT::dataTableOutput('correction_table_grid', width = "100%")
+          )
+        )
+      )
+    ),
+
+    tabItem(tabName = "correction_criterion",
+      tags$h2(icon("check-square"), " Correction par critère"),
+      h5(textOutput("to_correct_per_criterion")),
+      fluidRow(
+        infoBoxOutput("correction_set3"),
+        infoBoxOutput("template_link3"),
+        infoBoxOutput("evaluator_name3")
+      ),
+      fluidRow(
+        box(title = "Entrées pour un critère", status = "info", width = 12,
+          selectInput("item", "Critère :", label = NULL,
+            multiple = FALSE, selectize = TRUE, size = NULL, width = "50%",
+            selected = NULL),
+          #verbatimTextOutput("last_edited"),
+          #br(),
+          shinycssloaders::withSpinner(
+            DT::dataTableOutput('correction_table_criterion', width = "100%")
+          )
+        )
+      )
+    )
+  )
+)
+
+shinyUI <-  dashboardPage(header, sidebar, body, skin = "black")
+
+
+# The Shiny app server ----------------------------------------------------
+
+shinyServer <- function(input, output, session) {
+  # TODO: some temporary code for further enhancements
+  # A modal dialog box prompting for evaluator login and correction set
+  #modal_startup <- modalDialog(
+  #  "Veuillez vérifier votre identité et sélectionner un set de correction",
+  #  title = "Correction Science des Données Biologiques",
+  #  footer = tagList(
+  #    actionButton("cancel", "Annuler"),
+  #    actionButton("ok", "Continuer", class = "btn btn-primary btn-lg")
+  #  )
+  #)
+
+  #js <- c(
+  #  "correction_table_criterion.on('key',",
+  #  "  function(e, datatable, key, cell, originalEvent){",
+  #  "  var targetName = originalEvent.target.localName;",
+  #  "  if(key == 13 && targetName == 'body'){",
+  #  "    $(cell.node()).trigger('dblclick.dt');",
+  #  "  }",
+  #  "});",
+  #  "correction_table_criterion.on('keydown', function(e){",
+  #  "  var keys = [9,13,37,38,39,40];",
+  #  "  if(e.target.localName == 'input' && keys.indexOf(e.keyCode) > -1){",
+  #  "    $(e.target).trigger('blur');",
+  #  "  }",
+  #  "});",
+  #  "correction_table_criterion.on('key-focus',",
+  #  "  function(e, datatable, cell, originalEvent){",
+  #  "  var targetName = originalEvent.target.localName;",
+  #  "  var type = originalEvent.type;",
+  #  "  if(type == 'keydown' && targetName == 'input'){",
+  #  "    if([9,37,38,39,40].indexOf(originalEvent.keyCode) > -1){",
+  #  "      $(cell.node()).trigger('dblclick.dt');",
+  #  "    }",
+  #  "  }",
+  #  "});"
+  #)
+
   #showModal(modal_startup)
 
   #observeEvent(input$ok, {
@@ -236,44 +328,310 @@ shinyServer <- function(input, output) {
   #  stopApp(1)
   #})
 
-  output$correction_table_criterion <- DT::renderDataTable({
-    DT::formatStyle(
-      DT::datatable(
-        sort_table(populate_table(items = input$item, grids = "all",
-          context = context, reorder = TRUE, highlight = input$highlight,
-          max_lines = max_lines)),
-        colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère', 'Contenu',
-          'Graphique', 'Liens', 'Evaluateur', 'Étudiant/groupe'),
+  grid_dir <- eventReactive(input$course, {
+    # Select the course e.g. A22M, B22M,....
+    course <- courses_list[input$course]
+    x <- grep(course, course_dirs, value = TRUE)
+    # Create a vector with de directory path
+    res <- dir_ls(x, type = "directory")
+    names(res) <- basename(res)
+    attr(res, "ntot") <- length(res)
+    #message(glue('
+    #========================
+    ##1 corr_dir1() = The list of directories by course.
+    #{attr(res, "ntot")} folder(s) are to correct.
+    #The first folder is {names(res)[1]}}
+    #========================'))
+    res
+  })
+
+  observe({
+    req(input$course)
+    updateSelectizeInput(session, 'correction', choices = names(grid_dir()))
+  })
+
+  context_react <- reactive({
+    req(input$correction)
+
+    default_correction <- input$correction
+    create_context(correction = default_correction,
+      base_corr_dir = base_corr_dir, base_templ_dir = base_templ_dir,
+      base_repos_dir = base_repos_dir, repositories = repositories,
+      assignments = assignments, #repo = repo, app = app,
+      github_url = github_url, branch = branch)
+  })
+
+
+  # tabItem : summary ----
+
+  summary_react <- reactive({
+    req(input$correction)
+    input$refresh
+
+    course <- courses_list[input$course]
+    dir <- path(base_corr_dir, course, input$correction, "summary.rds")
+
+    if (file_exists(dir)) {
+      res <- read(dir)
+    } else {
+      check_grids(path(base_corr_dir, course, input$correction))
+      res <- read(dir)
+    }
+    #message(glue('
+    #========================
+    ##1 summary_react .
+    #{dim(res)}
+    #========================')
+    #  )
+    res
+  })
+
+  output$last_summary <- renderText({
+    #req(input$correction)
+    x1 <- attr(summary_react(), "date")
+    glue('Dernière mise à jour : {x1}.')
+  })
+
+  correction_set <- reactive({
+    req(input$correction)
+    context <- context_react()
+    ref <- classroom_urls[names(classroom_urls) ==
+        substr(input$correction, 1, 1)]
+    ref1 <- path(ref, "assignments",context$assignment[1])
+    assignment_set <- input$correction
+    curr_assign <- sub("^(.+)_([^_]+)$", "\\1", assignment_set)
+    curr_set <- sub("^(.+)_([^_]+)$", "\\2", assignment_set)
+    infoBox(h4(curr_assign), paste("Set:", curr_set),
+      color = "blue", icon = icon("folder-open"), href = ref1, fill = TRUE)
+  })
+
+  output$correction_set1 <- renderInfoBox({correction_set()})
+
+  template_link <- reactive({
+    req(input$course)
+    context <- context_react()
+    templ_url <- context$assign_infos$template[1]
+    templ_name <- basename(templ_url)
+    infoBox(h4("Template"), templ_name,
+      color = "blue", icon = icon("file-alt"), href = templ_url, fill = TRUE)
+  })
+
+  output$template_link1 <- renderInfoBox({template_link()})
+
+  evaluator <- eventReactive(input$evaluator, {
+    x <- input$evaluator
+    res <- try(gh::gh("/users/{username}", username = x), silent = TRUE)
+    attr(x, "exist") <- !inherits(res, 'try-error')
+    x
+  })
+
+  evaluator_name <- reactive({
+    req(input$course)
+    x <- evaluator()
+    if (!isTRUE(attr(x, "exist"))) {
+      col <- "orange"
+    } else {
+      col <- "green"
+    }
+    infoBox(h4("Evaluateur"), x,
+      color = col, icon = icon("user-check"),
+      href = paste0("https://github.com/", x), fill = TRUE)
+  })
+
+  output$evaluator_name1 <- renderInfoBox({
+    evaluator_name()
+  })
+
+  output$n_students <- renderValueBox({
+    x <- summary_react()
+    x1 <- length(unique(x$student))
+    valueBox(x1, "Etudiants", icon = icon("users"), color = "blue")})
+
+  output$n_grids <- renderValueBox({
+    x <- summary_react()
+    ntot <- length(unique(x$team))
+    x1 <- x[x$missing >= 1, ]
+    completed <- ntot - length(unique(x1$team))
+    # Propose a three-colors coding instead
+    if (ntot == completed) {
+      col <- "green"
+    } else {
+      col <- "red"
+    }
+    res <- glue("{completed} ({ntot - completed})")
+    valueBox(res, "Grilles terminées (à faire)", icon = icon("check"),
+      color = col)
+  })
+
+  output$n_success <- renderValueBox({
+    x <- summary_react()
+    x1 <- sum(x$score_20 >= 10, na.rm = TRUE)
+    x2 <- sum(is.na(x$score_20))
+    x3 <- nrow(x) - x2
+    x4 <- round((x1 / sum(!is.na(x$score_20))) * 100, 0)
+    if (is.na(x4)) {
+      col <- "red"
+    } else{
+      col <- cut(x4,
+        breaks = c(0, 74, 89, 100),
+        labels = c("red", "orange", "green"))
+    }
+    if (x2 != 0) {
+      res <- glue("{x1}/{x3} ({x2})")
+      res1 <- "Succès (non évalué)"
+    } else {
+      res <- glue("{x1}/{x3}")
+      res1 <- "Succès"
+    }
+    valueBox(res, res1, icon = icon("user-graduate"), color = col)
+  })
+
+  output$mean <- renderValueBox({
+    x <- summary_react()
+    x1 <- round(mean(x$score_20, na.rm = TRUE),1)
+    x2 <- round(median(x$score_20, na.rm = TRUE),1)
+    res <- glue("{x1} ({x2})")
+    valueBox(res, "Moyenne (Médiane) [/20]", icon = icon("equals"),
+      color = "blue")
+  })
+
+  download <- reactive({
+    res <- summary_react()
+    res$email <- paste0(res$student, "@umons.ac.be")
+    res1 <- res[,c("student", "email", "score_20", "file")]
+    colnames(res1)[colnames(res1) == "score_20"] <- res$assignment[1]
+    res1
+  })
+
+  output$downloadcsv <- downloadHandler(
+    # TODO: use a more informative name
+    filename = function() {
+      paste0("data-", Sys.Date(), ".csv")
+    },
+    content = function(file) {
+      write$csv(download(), file)
+    }
+  )
+
+  output$downloadexcel <- downloadHandler(
+    # TODO: use a more informative name
+    filename = function() {
+      paste0("data-", Sys.Date(), ".xlsx")
+    },
+    content = function(file) {
+      write$xlsx(download(), file)
+    }
+  )
+
+  observeEvent(input$refresh, {
+    course <- courses_list[input$course]
+    check_grids(path(base_corr_dir, course, input$correction))
+  })
+
+  output$score_plot <- renderPlot({
+    req(input$correction)
+    x <- summary_react()
+    #x1 <- sum(!(x$missing > 1))
+    x1 <- mean(x$score_20)
+    chart(data = x, ~ score_20) +
+      geom_histogram(bins = nrow(x)/2) +
+      geom_vline(xintercept = x1, color = "red", size = 1.5) +
+      labs(x = "Note des grilles completées [/20] - moyenne en rouge",
+           y = "Dénombrement")
+  })
+
+  output$summary_tab <- renderDataTable({
+    req(input$correction)
+    x <- summary_react()
+    x1 <- x[, c("team", "student", "score_20", "missing")]
+    x1 <- collapse::roworder(x1, -missing, score_20)
+
+    x1$team[x1$team == x1$student] <- "/"
+
+    formatStyle(
+      datatable(x1,
+        colnames = c('Equipe', 'Etudiant', 'Note [/20]','Entrées manquantes'),
         rownames = FALSE,
-        selection = "none",
-        escape = FALSE,
-        #callback = DT::JS(js),
-        extensions = c("Buttons", "KeyTable"),
-        options = list(
-          paging = FALSE,
-          searching = TRUE,
-          #fixedColumns = TRUE,
-          autoWidth = TRUE,
-          autoFill = TRUE,
-          ordering = FALSE,
-          dom = 'Bfrtip',
-          buttons = c('csv', 'excel'),
-          language = list(search = 'Filtrer :'),
-          columnDefs = list(
-            list(width = '300px', targets = 1), # score_comment
-            list(visible = FALSE, targets = 2), # criterion (don't show it here)
-            list(width = '1000px', targets = 3) # content
-          )
-        ),
-        editable = list(target = "cell", disable = list(columns = c(0, 2:10))),
-        class = "display"
-      ), 'score_comment', backgroundColor = "lightgrey"
+        options = list(language = list(search = 'Filtrer :'))
+      ),
+      "score_20",
+      target = "row",
+      backgroundColor = styleEqual(NA, "#FF4500")
     )
   })
 
-  output$correction_table_grid <- DT::renderDataTable({
-    DT::formatStyle(
-      DT::datatable(
+
+  # tabItem : correction_grid ----
+
+  output$correction_set2 <- renderInfoBox({correction_set()})
+
+  output$template_link2 <- renderInfoBox({template_link()})
+
+  output$evaluator_name2 <- renderInfoBox({evaluator_name()})
+
+  git_stats <- reactive({
+    context <- context_react()
+    #message("Git stats file: ", context$git_dir)
+    res <- stat_git(context$git_dir, type = input$contri_ext, tz = git_stats_tz)
+    #res$author_date <- with_tz(
+    #  # TODO: generalize this!
+    #  ymd_hms(res$author_date,tz = "UTC"), "Europe/Paris")
+    #res$author_date <- ymd_hms(as.character(res$author_date))
+    res
+  })
+
+  observe({
+    context <- context_react()
+    updateSelectizeInput(session, 'grid', choices = context$repos_names)
+  })
+
+  #output$contri_plot <- plotly::renderPlotly({
+  output$contri_plot <- renderPlot({
+    context <- context_react()
+    x <- git_stats()
+    stat_red <- x[tolower(x$github_repository) %in% tolower(input$grid), ]
+
+    if (input$contri_split == "séparer") {
+      p <- chart(data = stat_red,
+        change_cum1 ~ author_date %col=% author | extension)
+    } else {
+      p <- chart(data = stat_red,
+        change_cum ~ author_date %col=% author)
+    }
+    p <- p +
+      geom_step(size = 1, na.rm = TRUE) +
+      geom_point(na.rm = TRUE) +
+      theme(legend.position = "bottom") +
+      labs(x = "Temps", y = "Somme cumulée des modifications", color = "Auteur")
+
+    assign_infos <- context$assign_infos
+    assign_time <- c(start = assign_infos$start[1], end = assign_infos$end[1])
+
+    if (length(assign_time) == 2) {
+      stat_time <- c(
+        start = min(stat_red$author_date),
+        end   = max(stat_red$author_date))
+      plot_range <- range(c(assign_time,
+        min(stat_red$author_date),
+        max(stat_red$author_date)))
+      p <- p +
+        geom_vline(xintercept = assign_time,
+          linetype = 4, alpha = 0.8) +
+        xlim(plot_range) +
+        labs(caption =
+        "Les lignes verticales représentent le début et la fin de l'exercice.")
+    }
+
+    p
+    #plotly::ggplotly(p)
+  })
+
+  output$correction_table_grid <- renderDataTable({
+    req(input$grid)
+    context <- context_react()
+
+    formatStyle(
+      datatable(
         populate_table(items = "all", grids = input$grid, context = context,
           reorder = FALSE, highlight = input$highlight, max_lines = max_lines),
         colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère',  'Contenu',
@@ -298,6 +656,59 @@ shinyServer <- function(input, output) {
             #list(width = '300px', targets = 2), # criterion
             list(width = '1000px', targets = 3), # content
             list(visible = FALSE, targets = 7)   # student/group (hidden here)
+          )
+        ),
+        editable = list(target = "cell", disable = list(columns = c(0, 2:10))),
+        class = "display"
+      ), 'score_comment', backgroundColor = "lightgrey"
+    )
+  })
+
+
+  # tabItem : correction_criterion ----
+
+  output$correction_set3 <- renderInfoBox({correction_set()})
+
+  output$template_link3 <- renderInfoBox({template_link()})
+
+  output$evaluator_name3 <- renderInfoBox({evaluator_name()})
+
+  observe({
+    context <- context_react()
+    updateSelectizeInput(session, 'item',
+      choices = context$templ_corrs$criterion)
+  })
+
+  output$correction_table_criterion <- renderDataTable({
+    req(input$item)
+    context <- context_react()
+
+    formatStyle(
+      datatable(
+        sort_table(populate_table(items = input$item, grids = "all",
+          context = context, reorder = TRUE, highlight = input$highlight,
+          max_lines = max_lines)),
+        colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère', 'Contenu',
+          'Graphique', 'Liens', 'Evaluateur', 'Étudiant/groupe'),
+        rownames = FALSE,
+        selection = "none",
+        escape = FALSE,
+        #callback = DT::JS(js),
+        extensions = c("Buttons", "KeyTable"),
+        options = list(
+          paging = FALSE,
+          searching = TRUE,
+          #fixedColumns = TRUE,
+          autoWidth = TRUE,
+          autoFill = TRUE,
+          ordering = FALSE,
+          dom = 'Bfrtip',
+          buttons = c('csv', 'excel'),
+          language = list(search = 'Filtrer :'),
+          columnDefs = list(
+            list(width = '300px', targets = 1), # score_comment
+            list(visible = FALSE, targets = 2), # criterion (don't show it here)
+            list(width = '1000px', targets = 3) # content
           )
         ),
         editable = list(target = "cell", disable = list(columns = c(0, 2:10))),
@@ -337,7 +748,7 @@ shinyServer <- function(input, output) {
   #showNotification("message", type = "warning")
   #showNotification("message", type = "error")
 
-  #myProxy = DT::dataTableProxy('correction_table_criterion')
+  #myProxy = dataTableProxy('correction_table_criterion')
 
   observeEvent(input$correction_table_criterion_cell_edit, {
     # validate(need(!is.null(input$correction_table_criterion_cell_edit), ''))
@@ -347,9 +758,11 @@ shinyServer <- function(input, output) {
     if (input$correction_table_criterion_cell_edit$col == 1) {
       # This is a score, possibly followed by a comment
       # Get the corr_file
+      context <- context_react()
       corr_file <- context$corr_files[
         order[input$correction_table_criterion_cell_edit$row]]
       # Read it
+      message("Changing ", corr_file, " rubric...")
       corrs <- read(corr_file)
       # Make sure columns score, evaluator and comment are the right type
       corrs$score <- as.numeric(corrs$score)
@@ -363,7 +776,7 @@ shinyServer <- function(input, output) {
           corr_file)
         message(msg)
         showNotification(msg, type = "error")
-        #DT::selectCells(myProxy, selected = NULL)
+        #selectCells(myProxy, selected = NULL)
 
       } else {# pos found in corrs
         score_comment <- input$correction_table_criterion_cell_edit$value
@@ -395,21 +808,20 @@ shinyServer <- function(input, output) {
               " higher than the max score (", max, ")")
             message(msg)
             showNotification(msg, type = "error")
-            #DT::selectCells(myProxy, selected = NULL)
+            #selectCells(myProxy, selected = NULL)
 
           } else {# Everything is fine, record this entry
             corrs[pos, "score"] <- num_score
             corrs[pos, "comment"] <- comment
             corrs[pos, "evaluator"] <- input$evaluator
-            # Write it
-            data.io::write$csv(corrs, corr_file)
+            write$csv(corrs, corr_file)
           }
         } else {# !is_ok
           msg <- paste0("ERROR: score '", score,
-            "' not convertible into a numeric value")
+          "' not convertible into a numeric value")
           message(msg)
           showNotification(msg, type = "error")
-          #DT::selectCells(myProxy, selected = NULL)
+          #selectCells(myProxy, selected = NULL)
         }
       }
     }
@@ -424,15 +836,17 @@ shinyServer <- function(input, output) {
     if (input$correction_table_grid_cell_edit$col == 1) {
       # This is a score, possibly followed by a comment
       # Get the corr_file
+      context <- context_react()
       corr_pos <-
         (1:length(context$repos_names))[context$repos_names == input$grid]
       if (length(corr_pos) != 1) {
         msg <- paste0("ERROR: grid ", input$grid, " not found")
         message(msg)
         showNotification(msg, type = "error")
-        #DT::selectCells(myProxy, selected = NULL)
+        #selectCells(myProxy, selected = NULL)
       } else {
         corr_file <- context$corr_files[corr_pos]
+        message("Changing ", corr_file, " rubric...")
         # Read it
         corrs <- read(corr_file)
         # Make sure columns score, evaluator and comment are the right type
@@ -472,21 +886,20 @@ shinyServer <- function(input, output) {
               " higher than the max score (", max, ")")
             message(msg)
             showNotification(msg, type = "error")
-            #DT::selectCells(myProxy, selected = NULL)
+            #selectCells(myProxy, selected = NULL)
 
           } else {# Everything is fine, record this entry
             corrs[pos, "score"] <- num_score
             corrs[pos, "comment"] <- comment
             corrs[pos, "evaluator"] <- input$evaluator
-            # Write it
-            data.io::write$csv(corrs, corr_file)
+            write$csv(corrs, corr_file)
           }
         } else {# !is_ok
           msg <- paste0("ERROR: score '", score,
             "' not convertible into a numeric value")
           message(msg)
           showNotification(msg, type = "error")
-          #DT::selectCells(myProxy, selected = NULL)
+          #selectCells(myProxy, selected = NULL)
         }
       }
     }
@@ -494,13 +907,8 @@ shinyServer <- function(input, output) {
 
   ## Reset last selected value
   #observeEvent(input$reset, {
-  #  DT::selectCells(myProxy, selected = NULL)
+  #  selectCells(myProxy, selected = NULL)
   #})
 }
 
 shinyApp(shinyUI, shinyServer)
-# or ... to deal with return value:
-#my_app <- shinyApp(shinyUI, shinyServer)
-#res <- runApp(my_app)
-#if (res == 1)
-#  message("Application concelled by the user")
