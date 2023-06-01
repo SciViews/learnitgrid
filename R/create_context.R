@@ -19,28 +19,28 @@ create_context <- function(correction, base_corr_dir, base_templ_dir,
 base_repos_dir, repositories, assignments, github_url, branch) {
   course_dirs <- dir_ls(base_corr_dir, type = "directory")
   if (!length(course_dirs))
-    stop("Il n'y a pas encore de grilles de correction disponibles. ",
-      "Utilisez le script '04create_assessments3.R' pour les créer...")
+    stop("There is still no evalaution grids for this assignment. ",
+      "Use the script '04create_assessments4.R' to create them...")
   courses <- basename(course_dirs)
 
   corr_dirs <- dir_ls(course_dirs, type = "directory")
   if (!length(corr_dirs))
-    stop("Il n'y a pas encore de grilles de correction disponibles. ",
-      "Utilisez le script '04create_assessments3.R' pour les créer...")
+    stop("There is still no evalaution grids for this assignment. ",
+      "Use the script '04create_assessments4.R' to create them...")
   corrections <- basename(corr_dirs)
 
   if (is.null(correction) || !length(correction) || correction == "")
-    stop("Correction set non fourni, ou opération annulée.")
+    stop("Correction set not provided, or operation cancelled.")
   if (!correction %in% corrections)
-    stop("Correction set '", correction, "' introuvable. Vérifiez sa valeur...")
+    stop("Correction set '", correction, "' not found. Check it...")
 
   # Get corr_dir for this correction + get course, assignment and corr_date
   corr_dir <- corr_dirs[corrections == correction]
   course <- basename(dirname(corr_dir))
   corr_parts <- strsplit(correction, "_", fixed = TRUE)[[1]]
   if (length(corr_parts) < 4)
-    stop("Il y a un problème avec le set de corrections '", correction,
-      "'  : il devrait être quelque chose comme A00Ia_21M_titre_2022-01-01")
+    stop("Problem with the correction set '", correction,
+      "'  : it should be something like A00Ia_21M_title_2022-01-01")
   corr_date  <- corr_parts[length(corr_parts)]
   assignment <- paste(corr_parts[-length(corr_parts)], collapse = "_")
   rm(corr_parts)
@@ -81,14 +81,13 @@ base_repos_dir, repositories, assignments, github_url, branch) {
   #if (!is.null(app))
   #  assign_infos <- assign_infos[tolower(assign_infos$app) == tolower(app), ]
   if (!NROW(assign_infos)) {
-    stop("L'exercice sélectionné (", assignment, ") n'est pas trouvé dans ",
-      "la table des exercices.")
+    stop("The selected assignment (", assignment, ") is not found in ",
+      "the table.")
   }
 
   if (NROW(assign_infos) > 1) {
-    warning("L'exercice sélectionné (", assignment,
-      ") est trouvé dans la table ",
-      " des exercices en plusieurs exemplaires. Utilisation du premier.")
+    warning("The selected assignment (", assignment,
+      ") is found in several variants in the table. Use of the first one.")
     assign_infos <- assign_infos[1, ]
   }
 

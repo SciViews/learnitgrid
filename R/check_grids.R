@@ -38,7 +38,7 @@ check_grids <- function(dir, save.log = TRUE, save.rds = TRUE) {
     stop("'No correction grids found in the directory ", dir)
 
   # Initialize the results
-  res <- tibble::tibble(
+  res <- tibble(
     assignment = character(0),
     team       = character(0),
     student    = character(0),
@@ -71,7 +71,7 @@ check_grids <- function(dir, save.log = TRUE, save.rds = TRUE) {
       students <- students[students != ""]
     }
     # Create a results table for this team
-    res2 <- tibble::tibble(
+    res2 <- tibble(
       assignment = assignment,
       team       = team,
       student    = students,

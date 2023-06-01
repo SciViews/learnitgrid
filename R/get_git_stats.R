@@ -27,7 +27,7 @@ exclude_authors = "github-classroom[bot]", type = "all", tz = "UTC") {
 
   if (!any(vec == "all"))
     stat <- stat[stat$extension %in% vec, ]
-  #message("items in stat: ", nrow(stat))
+  #message("items in git_stats.csv: ", nrow(stat))
 
   stat <- collapse::roworder(stat, 'github_repository', 'author', 'author_date')
   g <- collapse::GRP(stat, ~ github_repository + author)

@@ -143,7 +143,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
             sub("^\\.", "./www", www_relative(rmd_local_files[pos_diff])),
             # Corr. Rmd file
             sub("^\\.", "./www", www_relative(corr_rmd_local_files[pos_diff])),
-            before = "original", after = "corrigé"),
+            before = "original", after = "corrected"),
             title = basename(rmd_local_files[pos_diff]),
             file = diff_files[pos_diff]))
         # Add a link to these files (only where diff_files exists)
@@ -194,7 +194,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
         r_content <- try(suppressWarnings(readLines(r_local_files[i])),
           silent = TRUE)
         if (inherits(r_content, "try-error")) {
-          codes[i] <- "<b>FICHIER INTROUVABLE</b>"
+          codes[i] <- "<b>FILE NOT FOUND</b>"
         } else {
           # Syntax highlighting
           if (isTRUE(highlight))
@@ -218,7 +218,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
           rmd_content <- try(suppressWarnings(readLines(rmd_local_files[i])),
             silent = TRUE)
           if (inherits(rmd_content, "try-error")) {
-            headers[i] <- "<b>FICHIER INTROUVABLE</b>"
+            headers[i] <- "<b>FILE NOT FOUND</b>"
           } else {
             # Knitr now accepts spaces in chunks but not parse_rmd => replace
             # them with another character
@@ -227,7 +227,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
             rmd <- try(parse_rmd(rmd_content, allow_incomplete = TRUE),
               silent = TRUE)
             if (inherits(rmd, "try-error")) {
-              headers[i] <- "<b>ERREUR SYNTAXE RMD</b>"
+              headers[i] <- "<b>SYNTAX ERROR RMD</b>"
             } else {
               header <- as_document(rmd_select(rmd, has_type("rmd_yaml_list")))
               # Eliminate empty lines, or lines with only ---
@@ -255,7 +255,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
           rmd_content <- try(suppressWarnings(readLines(rmd_local_files[i])),
             silent = TRUE)
           if (inherits(rmd_content, "try-error")) {
-            sections[i] <- "<b>FICHIER INTROUVABLE</b>"
+            sections[i] <- "<b>FILE NOT FOUND</b>"
           } else {
             # Knitr now accepts spaces in chunks but not parse_rmd => replace
             # them with another character
@@ -264,7 +264,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
             rmd <- try(parse_rmd(rmd_content, allow_incomplete = TRUE),
               silent = TRUE)
             if (inherits(rmd, "try-error")) {
-              sections[i] <- "<b>ERREUR SYNTAXE RMD</b>"
+              sections[i] <- "<b>SYNTAX ERROR RMD</b>"
             } else {
               section <- try(as_document(rmd_select(rmd,
                 by_section(header, keep_parents = FALSE))), silent = TRUE)
@@ -309,7 +309,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
           rmd_content <- try(suppressWarnings(readLines(rmd_local_files[i])),
             silent = TRUE)
           if (inherits(rmd_content, "try-error")) {
-            codes[i] <- "<b>FICHIER INTROUVABLE</b>"
+            codes[i] <- "<b>FILE NOT FOUND</b>"
           } else {
             # Knitr now accepts spaces in chunks but not parse_rmd => replace
             # them with another character
@@ -318,12 +318,12 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
             rmd <- try(parse_rmd(rmd_content, allow_incomplete = TRUE),
               silent = TRUE)
             if (inherits(rmd, "try-error")) {
-              codes[i] <- "<b>ERREUR SYNTAXE RMD</b>"
+              codes[i] <- "<b>SYNTAX ERROR RMD</b>"
             } else {
               code <- try(as_document(rmd_select(rmd, has_label(chunk))),
                 silent = TRUE)
               if (inherits(code, "try-error")) {
-                codes[i] <- "<b>CHUNK NON TROUVE</b>"
+                codes[i] <- "<b>CHUNK NOT FOUND</b>"
               } else {
                 # TODO: extract fig.cap if present
                 # Eliminate empty lines, containing only spaces,
@@ -370,7 +370,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
           rmd_content <- try(suppressWarnings(readLines(rmd_local_files[i])),
             silent = TRUE)
           if (inherits(rmd_content, "try-error")) {
-            paras[i] <- "<b>FICHIER INTROUVABLE</b>"
+            paras[i] <- "<b>FILE NOT FOUND</b>"
           } else {
             # Knitr now accepts spaces in chunks but not parse_rmd => replace
             # them with another character
@@ -379,7 +379,7 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
             rmd <- try(parse_rmd(rmd_content, allow_incomplete = TRUE),
               silent = TRUE)
             if (inherits(rmd, "try-error")) {
-              paras[i] <- "<b>ERREUR SYNTAXE RMD</b>"
+              paras[i] <- "<b>SYNTAX ERROR RMD</b>"
             } else {
               # We collect markdown paragraphs beneath the chunk and before
               # another chunk or a section
@@ -427,8 +427,8 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
 
       } else {# Simple entry
         # We just check if the Rmd compiled or not by looking for the HTML file
-        compiled <- rep("<b>Rmd pas compilé</b>", n)
-        compiled[exists_html_file] <- "Rmd compilé"
+        compiled <- rep("<b>Rmd not knitted</b>", n)
+        compiled[exists_html_file] <- "Rmd knitted"
         dat$content <- compiled
       }
 
