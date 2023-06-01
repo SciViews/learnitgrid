@@ -13,8 +13,9 @@ Authors@R: c(
   email = "guyliann.engels@umons.ac.be"))
 Maintainer: Philippe Grosjean <phgrosjean@sciviews.org>
 Depends: R (>= 4.1.0)
-Imports: learnitdown, shiny, parsermd, DT, data.io, fas, glue, gh, flashClust,
-  stringdist, shinyFeedback, highr, htmlwidgets, diffr
+Imports: learnitdown, shiny, shinydashboard, parsermd, DT, data.io, fas, glue,
+  gh, flashClust, stringdist, shinyFeedback, highr, htmlwidgets, diffr, ggplot2,
+  lubridate
 License: MIT + file LICENSE
 URL: https://github.com/SciViews/learnitgrid, https://www.sciviews.org/learnitgrid/
 BugReports: https://github.com/SciViews/learnitgrid/issues

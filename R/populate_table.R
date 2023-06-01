@@ -1,36 +1,46 @@
-#' Computes the content of a DT::datatable
+#' Computes the content of a DT::datatable for a correction set
 #'
 #' @description
-#' The most important function to fill in the table according to selected items
-#' with a list of grids (or "all") or according to a selected grid with a list
-#' of items (or "all")
+#' The most important function for the learnitgrid Shiny app to fill in the
+#' table according to selected items with a list of grids (or "all") or
+#' according to a selected grid with a list of items (or "all")
 #'
-#' @param items
-#' @param grids
-#' @param context
-#' @param reorder
-#' @param highlight Syntax highlighting for code (solw, thus `FALSE` by default)
+#' @param items The items of the evaluation grid to display in the table,
+#'   usually either one item, or "all" for everything
+#' @param grids The evaluation grids to display, usually either "all" if only
+#'   one item, or one grid if "all" items
+#' @param context A context object as computed by [create_context()].
+#' @param reorder Should the rows in the table be reordered by similarities?
+#'   This is usually `TRUE` for a single items, or `FALSE` otherwise (and it is
+#'   computed as such by default).
+#' @param highlight Syntax highlighting for code (slow, thus `FALSE` by default)
 #' @param max_lines The maximum number of content lines that are displayed
-#'   (truncate very long contents)
+#'   (truncate very long contents).
 #'
-#' @return
+#' @return A data frame with the content to be displayed in a DT::datatable object.
 #' @export
-#'
-#' @examples
 populate_table <- function(items, grids = "all", context,
-  reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
-  if (items == "all")
-    items <- context$templ_corrs$criterion
+reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
   if (grids == "all")
     grids <- context$repos_names
   # This selects the grids to use (one, several or all)
   gsel <- context$repos_names %in% grids
   n <- sum(gsel) # Number of grids to use
 
+  templ_corrs <- context$templ_corrs
+  if (items == "all") {
+    if (length(grids) == 1) {
+      # Single grid, all items, also !{login} items resolved for the group
+      # so, need to get these from the correction grid directly
+      templ_corrs <- suppressMessages(read(context$corr_files[gsel]))
+    }
+    items <- templ_corrs$criterion
+  }
+
   res <- NULL # The resulting object
   for (item in items) {
-    pos <- (1:nrow(context$templ_corrs))[context$templ_corrs$criterion == item]
-    templ_corr <- context$templ_corrs[pos, ]
+    pos <- (1:nrow(templ_corrs))[templ_corrs$criterion == item]
+    templ_corr <- templ_corrs[pos, ]
 
     # Get some more data from the correction items
     item_score_max <- templ_corr$max
@@ -57,7 +67,7 @@ populate_table <- function(items, grids = "all", context,
     evaluators <- rep("", n)
     comments <- rep("", n)
     for (i in 1:n) {
-      corrs <- read(context$corr_files[gsel][i])
+      corrs <- suppressMessages(read(context$corr_files[gsel][i]))
       pos1 <- (1:nrow(corrs))[corrs$criterion == item]
       if (length(pos1) < 1)
         stop("Item ", item, " not found")
@@ -70,16 +80,16 @@ populate_table <- function(items, grids = "all", context,
     comments[is.na(comments)] <- ""
 
     # Construct an HTML fragments with useful links (template, repo, file, ...)
-    repos_urls <- path(context$github_url, context$repos_names2[gsel])
+    repos_urls <- path(context$github_url, context$repos_names3[gsel])
     template <- context$assign_infos$template
-    links <- c('<a href="{template}" target="_blank">template</a>',
-      '<a href="{repos_urls}" target="_blank">repo</a>')
+    links <- c('<a href="{template}" target="githubwindow">template</a>',
+      '<a href="{repos_urls}" target="githubwindow">repo</a>')
 
     # If we have a subdir, we offer the link to go there directly
     if (item_subdir != "") {
       repos_subdirs <- path(repos_urls, "blob", context$branch, item_subdir)
       links <- c(links,
-        '<a href="{repos_subdirs}" target="_blank">{item_subdir}</a>')
+        '<a href="{repos_subdirs}" target="githubwindow">{item_subdir}</a>')
     } else {
       repos_subdirs <- repos_urls
     }
@@ -90,8 +100,8 @@ populate_table <- function(items, grids = "all", context,
         context$branch, item_subdir, item_file)
       r_local_files <- path(context$repos_dirs[gsel], item_subdir, item_file)
       links <- c(links,
-        '<a href="{r_files}" target="_blank">R script</a>',
-        '<a href="./{strip_www(r_local_files)}" target="_blank">(get it)</a>')
+        '<a href="{r_files}" target="sourcewindow">R script</a>',
+        '<a href="{www_relative(r_local_files)}" target="_blank">(get it)</a>')
     } else {
       r_files <- character(0)
       r_local_files <- character(0)
@@ -108,29 +118,31 @@ populate_table <- function(items, grids = "all", context,
       # However, there may be a _corr.html file instead... Here we don't look
       # for it, but we just replace .html by _corr.html where the .html file
       # does not exist.
-      exists_html_file <- fs::file_exists(html_local_files)
+      exists_html_file <- file_exists(html_local_files)
       if (any(!exists_html_file)) {
         corr_html_local_files <- sub("\\.html", "_corr.html",
           html_local_files[!exists_html_file])
         html_local_files[!exists_html_file] <- corr_html_local_files
       }
       links <- c(links,
-        '<a href="./{strip_www(html_local_files)}" target="_blank">html</a>',
-        '<a href="{rmd_files}" target="_blank">Rmd</a>',
-        '<a href="./{strip_www(rmd_local_files)}" target="_blank">(get it)</a>'
+        '<a href="{www_relative(html_local_files)}" target="htmlwindow">html</a>',
+        '<a href="{rmd_files}" target="sourcewindow">Rmd</a>',
+        '<a href="{www_relative(rmd_local_files)}" target="_blank">(get it)</a>'
       )
       # If there are _corr.Rmd and .Rmd files, add a _diff.html and a link to it
       corr_rmd_local_files <- sub("\\.Rmd$", "_corr.Rmd", rmd_local_files)
       diff_files <- sub("\\.Rmd$", "_diff.html", rmd_local_files)
-      exists_both_rmd_files <- fs::file_exists(rmd_local_files) &
-        fs::file_exists(corr_rmd_local_files)
+      exists_both_rmd_files <- file_exists(rmd_local_files) &
+        file_exists(corr_rmd_local_files)
       if (any(exists_both_rmd_files)) {
-        # Create or update the _diff_html files
+        # Create or update the _diff.html files
         pos_diffs <- (1:length(rmd_local_files))[exists_both_rmd_files]
         for (pos_diff in pos_diffs)
           try(htmlwidgets::saveWidget(diffr::diffr(
-            fs::path(getwd(), rmd_local_files[pos_diff]), # Original Rmd file
-            fs::path(getwd(), corr_rmd_local_files[pos_diff]), # Corr. Rmd file
+            # Original Rmd file
+            sub("^\\.", "./www", www_relative(rmd_local_files[pos_diff])),
+            # Corr. Rmd file
+            sub("^\\.", "./www", www_relative(corr_rmd_local_files[pos_diff])),
             before = "original", after = "corrigé"),
             title = basename(rmd_local_files[pos_diff]),
             file = diff_files[pos_diff]))
@@ -138,7 +150,7 @@ populate_table <- function(items, grids = "all", context,
         diff_links <- rep('', length(rmd_local_files))
         diff_links[pos_diffs] <- "diff"
         links <- c(links,
-          '<a href="./{strip_www(diff_files)}" target="_blank">{diff_links}</a>')
+          '<a href="{www_relative(diff_files)}" target="diffwindow">{diff_links}</a>')
       }
     } else {
       rmd_files <- character(0)
@@ -339,10 +351,10 @@ populate_table <- function(items, grids = "all", context,
         plot_local_files <- path(context$repos_dirs[gsel], item_subdir, sub(
           "\\.Rmd$", "_files", item_file), "figure-html", paste0(key, "-1.png"))
         dat$plot <- glue(paste0(
-          '<a href="./{strip_www(plot_local_files)}" target="_blank">',
-          '<img src="./{strip_www(plot_local_files)}" height="200px"></a>'))
+          '<a href="{www_relative(plot_local_files)}" target="plotwindow">',
+          '<img src="{www_relative(plot_local_files)}" height="200px"></a>'))
         # Eliminate items that do not point to an existing image file
-        dat$plot[!fs::file_exists(plot_local_files)] <- ""
+        dat$plot[!file_exists(plot_local_files)] <- ""
 
       } else if (substring(key, 1, 1) == "+" || grepl("@[a-zA-Z]+", item)) {
         # +chunk = ... item, or message @chunk
@@ -408,10 +420,10 @@ populate_table <- function(items, grids = "all", context,
         plot_local_files <- path(context$repos_dirs[gsel], item_subdir, sub(
           "\\.Rmd$", "_files", item_file), "figure-html", paste0(key, "-1.png"))
         dat$plot <- glue(paste0(
-          '<a href="./{strip_www(plot_local_files)}" target="_blank">',
-          '<img src="./{strip_www(plot_local_files)}" height="200px"></a>'))
+          '<a href="{www_relative(plot_local_files)}" target="plotwindow">',
+          '<img src="{www_relative(plot_local_files)}" height="200px"></a>'))
         # Eliminate items that do not point to an existing image file
-        dat$plot[!fs::file_exists(plot_local_files)] <- ""
+        dat$plot[!file_exists(plot_local_files)] <- ""
 
       } else {# Simple entry
         # We just check if the Rmd compiled or not by looking for the HTML file
@@ -431,4 +443,13 @@ populate_table <- function(items, grids = "all", context,
   }
   attr(res, "reordered") <- reorder
   res
+}
+
+# We need to strip www/ in front of the relative paths for the Shiny app
+www_relative <- function(x) {
+  x <- sub("^.*www/", "", x)
+  x <- sub("^corrections/", "corr/", x)
+  x <- sub("^repos/", "repo/", x)
+  x <- sub("^templates/", "temp/", x)
+  paste0("./", x)
 }

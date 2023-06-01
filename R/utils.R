@@ -1,76 +1,47 @@
 #' Make sure a directory exists, or create it
 #'
-#' @param ...
+#' @param ... The successive folders that make the path.
 #'
-#' @return
+#' @return A **path** object is returned invisibly.
 #' @export
 #'
 #' @examples
+#' test_path <- dir_path_create(tempdir(), "dir_path_create_test", "subfolder")
+#' test_path
+#' dir.exists(test_path) # Should be TRUE
+#' dir_path_check(test_path) # Return the path only if it exists
+#' # Remove
+#' unlink(test_path)
+#' unlink(dirname(test_path))
 dir_path_create <- function(...) {
   dir <- path(...)
   dir_create(dir)
-  dir
+  invisible(dir)
 }
 
-#' Make sure a directory exists, or stop()
-#'
-#' @param ...
-#'
-#' @return
+#' @describeIn dir_path_create Check that a directory exists.
 #' @export
-#'
-#' @examples
 dir_path_check <- function(...) {
   dir <- path(...)
   if (!dir_exists(dir))
     stop("The directory '", dir, "' is not found!")
-  dir
+  invisible(dir)
 }
 
-#' Make sure a file exists
-#'
-#' @param ...
-#'
-#' @return
+#' @describeIn dir_path_create Check that a file exists.
 #' @export
-#'
-#' @examples
 file_path_check <- function(...) {
   file <- path(...)
   if (!file_exists(file))
     stop("The file '", file, "' is not found!")
-  file
+  invisible(file)
 }
 
-#' Read csv files without issuing messages
+#' Make proper Rmd/Qmd chunk labels from strings for parsermd::parse_rmd()
 #'
-#' @param file
+#' @param x A character string of chunk labels to convert
 #'
-#' @return
-#' @export
-#'
-#' @examples
-read <- function(file) {
-  suppressMessages(data.io::read(file))
-}
-
-#' Strip www/ in front of the relative paths for the Shiny app
-#'
-#' @param x
-#'
-#' @return
-#' @export
-#'
-#' @examples
-strip_www <- function(x) {
-  sub("^www/", "", x)
-}
-
-#' Make proper chunk labels from strings for parsermd::parse_rmd()
-#'
-#' @param x
-#'
-#' @return
+#' @return A character string of the same length as `x` with "educated" labels.
 #' @export
 #'
 #' @examples
@@ -87,11 +58,11 @@ chunk_labels <- function(x) {
   x
 }
 
-#' Make sure than chunk labels are written without spaces
+#' Make sure that Rmd/Qmd chunk labels are written without spaces
 #'
-#' @param rmd
+#' @param rmd Character string with the content of a Rmd/Qmd file.
 #'
-#' @return
+#' @return The same Rmd/Qmd content, but with "educated" chunk labels.
 #' @export
 #'
 #' @examples

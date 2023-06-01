@@ -20,7 +20,7 @@ if (!file_exists(config_file))
   config_file <- path("www", "learnitgrid_config.R")
 if (file_exists(config_file)) {
   message("Sourcing config file ", config_file, "...")
-  source(config_file) #, echo = TRUE)
+  source(config_file, encoding = "UTF-8") #, echo = TRUE)
 } else {
   message("No config file ", config_file, " found!")
 }
@@ -77,7 +77,7 @@ if (!exists("max_lines"))
 if (!exists("default_highlight"))
   default_highlight <- getOption("learnitgrid.highlight", FALSE)
 
-# Default options for stat_git()
+# Default options for get_git_stats()
 if (!exists("exclude_authors"))
   exclude_authors <- "github-classroom[bot]"
 if (!exists("git_stats_type"))
@@ -89,9 +89,9 @@ if (!exists("git_stats_tz"))
 # Global objects ----------------------------------------------------------
 
 repos_file        <- file_path_check(root_dir, repos_filename)
-repositories      <- read(repos_file)
+repositories      <- suppressMessages(read(repos_file))
 assign_file       <- file_path_check(root_dir, assign_filename)
-assignments       <- read(assign_file)
+assignments       <- suppressMessages(read(assign_file))
 order             <- NULL     # The order for the table by criterion
 
 course_dirs <- dir_ls(base_corr_dir, type = "directory")
@@ -372,10 +372,10 @@ shinyServer <- function(input, output, session) {
     dir <- path(base_corr_dir, course, input$correction, "summary.rds")
 
     if (file_exists(dir)) {
-      res <- read(dir)
+      res <- suppressMessages(read(dir))
     } else {
       check_grids(path(base_corr_dir, course, input$correction))
-      res <- read(dir)
+      res <- suppressMessages(read(dir))
     }
     #message(glue('
     #========================
@@ -572,7 +572,8 @@ shinyServer <- function(input, output, session) {
   git_stats <- reactive({
     context <- context_react()
     #message("Git stats file: ", context$git_dir)
-    res <- stat_git(context$git_dir, type = input$contri_ext, tz = git_stats_tz)
+    res <- get_git_stats(context$git_stats_file, type = input$contri_ext,
+      tz = git_stats_tz)
     #res$author_date <- with_tz(
     #  # TODO: generalize this!
     #  ymd_hms(res$author_date,tz = "UTC"), "Europe/Paris")
@@ -763,7 +764,7 @@ shinyServer <- function(input, output, session) {
         order[input$correction_table_criterion_cell_edit$row]]
       # Read it
       message("Changing ", corr_file, " rubric...")
-      corrs <- read(corr_file)
+      corrs <- suppressMessages(read(corr_file))
       # Make sure columns score, evaluator and comment are the right type
       corrs$score <- as.numeric(corrs$score)
       corrs$evaluator <- as.character(corrs$evaluator)
@@ -848,7 +849,7 @@ shinyServer <- function(input, output, session) {
         corr_file <- context$corr_files[corr_pos]
         message("Changing ", corr_file, " rubric...")
         # Read it
-        corrs <- read(corr_file)
+        corrs <- suppressMessages(read(corr_file))
         # Make sure columns score, evaluator and comment are the right type
         corrs$score <- as.numeric(corrs$score)
         corrs$evaluator <- as.character(corrs$evaluator)
