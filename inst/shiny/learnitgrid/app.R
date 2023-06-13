@@ -184,7 +184,16 @@ sidebar <- dashboardSidebar(width = 350,
 
 body <- dashboardBody(
   #shinybusy::add_busy_spinner(spin = "fading-circle"),
-  tags$head(tags$base(target = "_blank")),
+  tags$head(
+    tags$base(target = "_blank"),
+    tags$style(
+        HTML(".shiny-notification {
+             position:fixed;
+             top: calc(50%);
+             left: calc(30%);
+             }
+             "))
+    ),
   tabItems(
     tabItem(tabName = "summary",
       tags$h2(icon("calculator"), " Résumé"),
@@ -290,31 +299,36 @@ shinyServer <- function(input, output, session) {
   #  )
   #)
 
-  #js <- c(
-  #  "correction_table_criterion.on('key',",
-  #  "  function(e, datatable, key, cell, originalEvent){",
-  #  "  var targetName = originalEvent.target.localName;",
-  #  "  if(key == 13 && targetName == 'body'){",
-  #  "    $(cell.node()).trigger('dblclick.dt');",
-  #  "  }",
-  #  "});",
-  #  "correction_table_criterion.on('keydown', function(e){",
-  #  "  var keys = [9,13,37,38,39,40];",
-  #  "  if(e.target.localName == 'input' && keys.indexOf(e.keyCode) > -1){",
-  #  "    $(e.target).trigger('blur');",
-  #  "  }",
-  #  "});",
-  #  "correction_table_criterion.on('key-focus',",
-  #  "  function(e, datatable, cell, originalEvent){",
-  #  "  var targetName = originalEvent.target.localName;",
-  #  "  var type = originalEvent.type;",
-  #  "  if(type == 'keydown' && targetName == 'input'){",
-  #  "    if([9,37,38,39,40].indexOf(originalEvent.keyCode) > -1){",
-  #  "      $(cell.node()).trigger('dblclick.dt');",
-  #  "    }",
-  #  "  }",
-  #  "});"
-  #)
+      # https://stackoverflow.com/questions/66262809/how-to-trigger-edit-on-single-click-in-r-shiny-dt-datatable
+    # https://stackoverflow.com/questions/54907273/use-tab-to-edit-next-cell-on-dt-table
+    js <- c(
+      "table.on('click', 'td', function() {",
+      "$(this).dblclick();",
+      "});",
+      "table.on('key', function(e, datatable, key, cell, originalEvent){",
+      "  var targetName = originalEvent.target.localName;",
+      "  if(key == 13){",
+      "    if(targetName == 'body'){",
+      "      $(cell.node()).trigger('dblclick.dt');",
+      "    }else if(targetName == 'input'){",
+      "      $(originalEvent.target).trigger('blur');",
+      "    }",
+      "  }",
+      "})",
+      "table.on('keydown', function(e){",
+      "  if(e.target.localName == 'input' && [9,13,37,38,39,40].indexOf(e.keyCode) > -1){",
+      "    $(e.target).trigger('blur');",
+      "  }",
+      "});",
+      "table.on('key-focus', function(e, datatable, cell, originalEvent){",
+      "  var targetName = originalEvent.target.localName;",
+      "  var type = originalEvent.type;",
+      "  if(type == 'keydown' && targetName == 'input'){",
+      "    if([9,37,38,39,40].indexOf(originalEvent.keyCode) > -1){",
+      "      $(cell.node()).trigger('dblclick.dt');",
+      "    }",
+      "  }",
+      "});")
 
   #showModal(modal_startup)
 
@@ -640,9 +654,10 @@ shinyServer <- function(input, output, session) {
         rownames = FALSE,
         selection = "none",
         escape = FALSE,
-        #callback = DT::JS(js),
+        callback = DT::JS(js),
         extensions = c("Buttons", "KeyTable"),
         options = list(
+          keys = TRUE,
           paging = FALSE,
           searching = TRUE,
           #fixedColumns = TRUE,
@@ -694,9 +709,10 @@ shinyServer <- function(input, output, session) {
         rownames = FALSE,
         selection = "none",
         escape = FALSE,
-        #callback = DT::JS(js),
+        callback = DT::JS(js),
         extensions = c("Buttons", "KeyTable"),
         options = list(
+          keys = TRUE,
           paging = FALSE,
           searching = TRUE,
           #fixedColumns = TRUE,
