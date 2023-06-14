@@ -520,7 +520,8 @@ shinyServer <- function(input, output, session) {
   output$downloadcsv <- downloadHandler(
     # TODO: use a more informative name
     filename = function() {
-      paste0("data-", Sys.Date(), ".csv")
+      context <- context_react()
+      paste0(context$assignment[1],"-summary-", Sys.Date(), ".csv")
     },
     content = function(file) {
       write$csv(download(), file)
@@ -530,7 +531,8 @@ shinyServer <- function(input, output, session) {
   output$downloadexcel <- downloadHandler(
     # TODO: use a more informative name
     filename = function() {
-      paste0("data-", Sys.Date(), ".xlsx")
+      context <- context_react()
+      paste0(context$assignment[1],"-summary-", Sys.Date(), ".xlsx")
     },
     content = function(file) {
       write$xlsx(download(), file)
