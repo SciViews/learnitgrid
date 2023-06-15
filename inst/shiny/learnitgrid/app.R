@@ -170,7 +170,7 @@ sidebar <- dashboardSidebar(width = 350,
     placeholder = "Votre login (Github) comme évaluateur"),
   textOutput("evaluator_check"),
   hr(),
-  sidebarMenu(
+  sidebarMenu(id = "menu_item",
     menuItem("Résumé", tabName = "summary",
       icon = icon("calculator")),
     menuItem("Correction par grille", tabName = "correction_grid",
@@ -233,7 +233,7 @@ body <- dashboardBody(
         infoBoxOutput("evaluator_name2")
       ),
       fluidRow(
-        box(title = "Progression du projet", status = "info", width = 12,
+        box(title = "Contribution au projet", status = "info", width = 12,
           collapsible = TRUE, collapsed = TRUE,
           selectInput("contri_ext", label = "Type de fichiers",
             choices = c("Rmd", "R"), multiple = TRUE, selected = c("Rmd", "R")),
@@ -299,7 +299,7 @@ shinyServer <- function(input, output, session) {
   #  )
   #)
 
-      # https://stackoverflow.com/questions/66262809/how-to-trigger-edit-on-single-click-in-r-shiny-dt-datatable
+    # https://stackoverflow.com/questions/66262809/how-to-trigger-edit-on-single-click-in-r-shiny-dt-datatable
     # https://stackoverflow.com/questions/54907273/use-tab-to-edit-next-cell-on-dt-table
     js <- c(
       "table.on('click', 'td', function() {",
@@ -518,7 +518,6 @@ shinyServer <- function(input, output, session) {
   })
 
   output$downloadcsv <- downloadHandler(
-    # TODO: use a more informative name
     filename = function() {
       context <- context_react()
       paste0(context$assignment[1],"-summary-", Sys.Date(), ".csv")
@@ -529,7 +528,6 @@ shinyServer <- function(input, output, session) {
   )
 
   output$downloadexcel <- downloadHandler(
-    # TODO: use a more informative name
     filename = function() {
       context <- context_react()
       paste0(context$assignment[1],"-summary-", Sys.Date(), ".xlsx")
@@ -568,6 +566,7 @@ shinyServer <- function(input, output, session) {
       datatable(x1,
         colnames = c('Equipe', 'Etudiant', 'Note [/20]','Entrées manquantes'),
         rownames = FALSE,
+        selection = "single",
         options = list(language = list(search = 'Filtrer :'))
       ),
       "score_20",
@@ -597,9 +596,68 @@ shinyServer <- function(input, output, session) {
     res
   })
 
+  ## selection_grid ----
+  selection_grid <- reactiveVal()
+
+  observeEvent(input$correction, {
+    res <- NULL
+    selection_grid(res)
+    message(glue::glue("
+      reset selection_grid() : {selection_grid()}"))
+  })
+
+  observeEvent(input$summary_tab_rows_selected,{
+    # Collect the selected row
+    info <- input$summary_tab_rows_selected
+    # Use the summary_react table to find the grid
+    res <- collapse::roworder(summary_react(), -missing, score_20)
+    res1 <- res[info,]
+    grid <- paste0(res1$assignment, "-", res1$team)
+
+    # Check that the grid names correspond to the context
+    context <- context_react()
+
+    if (!any(context$repos_names %in% grid)) {
+      if (any(context$repos_names %in% tolower(grid))){
+        grid <- tolower(grid)
+      } else {
+        grid <- NULL
+      }
+    }
+    # Update selection_grid()
+    selection_grid(grid)
+    # debug test
+    message(glue::glue("
+    #### summary_tab_rows_selected ####
+    The selection_grid : {selection_grid()}
+    The info : {info} "))
+  })
+
+  observeEvent(input$correction_table_criterion_cell_clicked,{
+    # Collect the selected cell
+    info <- input$correction_table_criterion_cell_clicked
+    # Check that the grid names correspond to the context
+    context <- context_react()
+    grid <- context$repos_names[
+        order[info$row]]
+
+    if (!any(context$repos_names %in% grid))
+     grid <- NULL
+
+    # Update selection_grid()
+    selection_grid(grid)
+    # debug test
+    message(glue::glue("
+    #### correction_table_criterion_cell_clicked ####
+    The selection_grid : {selection_grid()}
+    The info : row = {info$row}, col =  {info$col}"))
+  })
+
   observe({
     context <- context_react()
-    updateSelectizeInput(session, 'grid', choices = context$repos_names)
+    selection1 <- selection_grid()
+    updateSelectizeInput(session, 'grid', choices = context$repos_names,
+      selected = selection1)
   })
 
   #output$contri_plot <- plotly::renderPlotly({
@@ -619,7 +677,7 @@ shinyServer <- function(input, output, session) {
       geom_step(size = 1, na.rm = TRUE) +
       geom_point(na.rm = TRUE) +
       theme(legend.position = "bottom") +
-      labs(x = "Temps", y = "Somme cumulée des modifications", color = "Auteur")
+      labs(x = "Temps", y = "Somme cumulée des lignes modifiés par projet", color = "Auteur")
 
     assign_infos <- context$assign_infos
     assign_time <- c(start = assign_infos$start[1], end = assign_infos$end[1])
@@ -636,21 +694,27 @@ shinyServer <- function(input, output, session) {
           linetype = 4, alpha = 0.8) +
         xlim(plot_range) +
         labs(caption =
-        "Les lignes verticales représentent le début et la fin de l'exercice.")
+        "Chaque point représente un commit. Les lignes verticales représentent le début et la fin de l'exercice.")
     }
 
     p
     #plotly::ggplotly(p)
   })
 
+  correction_table_grid_react <- reactive({
+      req(input$grid)
+      context <- context_react()
+
+      populate_table(items = "all", grids = input$grid, context = context,
+          reorder = FALSE, highlight = input$highlight, max_lines = max_lines)
+    })
+
   output$correction_table_grid <- renderDataTable({
     req(input$grid)
-    context <- context_react()
 
     formatStyle(
       datatable(
-        populate_table(items = "all", grids = input$grid, context = context,
-          reorder = FALSE, highlight = input$highlight, max_lines = max_lines),
+        correction_table_grid_react(),
         colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère',  'Contenu',
           'Graphique', 'Liens', 'Evaluateur', 'Étudiant/groupe'),
         rownames = FALSE,
@@ -690,22 +754,60 @@ shinyServer <- function(input, output, session) {
   output$template_link3 <- renderInfoBox({template_link()})
 
   output$evaluator_name3 <- renderInfoBox({evaluator_name()})
+  ## Select the criterion
+
+  selection_criterion <- reactiveVal()
+
+  observeEvent(input$correction, {
+    res <- NULL
+    selection_criterion(res)
+  })
+
+  observeEvent(input$correction_table_grid_cell_clicked,{
+    # Collect the selected cell
+    info <- input$correction_table_grid_cell_clicked
+    # Check that the criterion correspond to the context
+    context <- context_react()
+
+    res <- NULL
+
+    if(!is.null(info$row)){
+     x <- correction_table_grid_react()[info$row, ]
+     res <- x$criterion
+    }
+
+    if(!any(context$templ_corrs$criterion %in% res))
+      res <- NULL
+    # Update selection_grid()
+    selection_criterion(res)
+    # Message info
+    message(glue::glue("
+    #### correction_table_grid_cell_clicked ####
+    The selection_grid : {selection_criterion()}
+    The info : row = {info$row}, col =  {info$col}"))
+  })
 
   observe({
     context <- context_react()
+    selection1 <- selection_criterion()
     updateSelectizeInput(session, 'item',
-      choices = context$templ_corrs$criterion)
+      choices = context$templ_corrs$criterion,
+      selected = selection1)
   })
 
-  output$correction_table_criterion <- renderDataTable({
+  correction_table_criterion_react <- reactive({
     req(input$item)
     context <- context_react()
 
+    sort_table(populate_table(items = input$item, grids = "all",
+          context = context, reorder = TRUE, highlight = input$highlight,
+          max_lines = max_lines))
+  })
+
+  output$correction_table_criterion <- renderDataTable({
     formatStyle(
       datatable(
-        sort_table(populate_table(items = input$item, grids = "all",
-          context = context, reorder = TRUE, highlight = input$highlight,
-          max_lines = max_lines)),
+        correction_table_criterion_react(),
         colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère', 'Contenu',
           'Graphique', 'Liens', 'Evaluateur', 'Étudiant/groupe'),
         rownames = FALSE,

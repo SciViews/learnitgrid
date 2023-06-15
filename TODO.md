@@ -4,4 +4,4 @@
 -   Transform into a Shiny dashboard application (-\> Guyliann).
 -   A summary page (-\> Guyliann).
 -   Add figure caption beneath the plot.
--   Cell edition without requiring double-click first and enter at the end.
+-   Cell edition without requiring double-click first and enter at the end (-\> Guyliann).
