@@ -444,12 +444,3 @@ reorder = (length(items) == 1), highlight = FALSE, max_lines = 20L) {
   attr(res, "reordered") <- reorder
   res
 }
-
-# We need to strip www/ in front of the relative paths for the Shiny app
-www_relative <- function(x) {
-  x <- sub("^.*www/", "", x)
-  x <- sub("^corrections/", "corr/", x)
-  x <- sub("^repos/", "repo/", x)
-  x <- sub("^templates/", "temp/", x)
-  paste0("./", x)
-}

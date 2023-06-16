@@ -624,7 +624,7 @@ shinyServer <- function(input, output, session) {
     context <- context_react()
 
     if (!any(context$repos_names %in% grid)) {
-      if (any(context$repos_names %in% tolower(grid))){
+      if (any(context$repos_names %in% tolower(grid))) {
         grid <- tolower(grid)
       } else {
         grid <- NULL
@@ -777,12 +777,12 @@ shinyServer <- function(input, output, session) {
 
     res <- NULL
 
-    if(!is.null(info$row)){
+    if (!is.null(info$row)) {
      x <- correction_table_grid_react()[info$row, ]
      res <- x$criterion
     }
 
-    if(!any(context$templ_corrs$criterion %in% res))
+    if (!any(context$templ_corrs$criterion %in% res))
       res <- NULL
     # Update selection_grid()
     selection_criterion(res)

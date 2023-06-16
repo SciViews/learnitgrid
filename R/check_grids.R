@@ -24,8 +24,6 @@
 #' @return A data frame with the results of the evaluation grids check for the
 #'   learnitgrid Shiny app.
 #' @export
-#'
-#' @examples
 check_grids <- function(dir, save.log = TRUE, save.rds = TRUE) {
   stopifnot(is.character(dir), length(dir) == 1, dir_exists(dir))
 

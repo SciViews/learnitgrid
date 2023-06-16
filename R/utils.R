@@ -64,8 +64,6 @@ chunk_labels <- function(x) {
 #'
 #' @return The same Rmd/Qmd content, but with "educated" chunk labels.
 #' @export
-#'
-#' @examples
 correct_rmd <- function(rmd) {
   # If rmd is the content of an Rmd file. We want to regularize all chunk labels
   # in order to get something form parsermd::parse_rmd()
@@ -88,4 +86,36 @@ correct_rmd <- function(rmd) {
   rmd[is_chunk_start] <- chunks
 
   rmd
+}
+
+#' Create symbolic links under www subdirectory or strip www subdirectory from the path
+#'
+#' @description Symbolic links in the www subdirectory of the Shiny app are
+#' required for the application to properly display html documents or images in
+#' html tags.
+#'
+#' @param path The (absolute) path containing the documents.
+#' @param link The name to use for the symbolic link under the www subdirectory of the Shiny app.
+#'
+#' @return `TRUE` if the symbolic link exists for [link_to_www()] or `FALSE`
+#' otherwise. The modified path is returned by[www_relative()]
+#' @export
+link_to_www <- function(path, link) {
+  link_path <- path("www", link)
+  dir_create("www")            # Make sure this subdirectory exists
+  if (link_exists(link_path))  # Don't check if the lin is correct or not,
+    link_delete(link_path)     # just (re)create it
+  if (!file_exists(link_path)) # Keep any existing file/folder
+    link_create(path, link_path, symbolic = TRUE)
+  invisible(link_exists(link_path))
+}
+
+#' @describeIn link_to_www Strip www/ in front of the relative paths for a Shiny app.
+#' @export
+www_relative <- function(path) {
+  path <- sub("^.*www/", "", path)
+  path <- sub("^corrections/", "corr/", path)
+  path <- sub("^repos/", "repo/", path)
+  path <- sub("^templates/", "temp/", path)
+  paste0("./", path)
 }

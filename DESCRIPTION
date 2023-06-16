@@ -13,16 +13,15 @@ Authors@R: c(
   email = "guyliann.engels@umons.ac.be"))
 Maintainer: Philippe Grosjean <phgrosjean@sciviews.org>
 Depends: R (>= 4.1.0)
-Imports: learnitdown, shiny, shinydashboard, parsermd, DT, data.io, fs, glue,
-  gh, flashClust, stringdist, shinyFeedback, highr, htmlwidgets, diffr, ggplot2,
-  lubridate, tibble, collapse, stats
+Imports: shiny, shinydashboard, parsermd, DT, data.io, chart, fs, glue,
+  gh, flashClust, stringdist, shinycssloaders, highr, htmlwidgets, diffr,
+  ggplot2, lubridate, tibble, collapse, stats
+Suggests: learnitdown, spelling, knitr
 License: MIT + file LICENSE
 URL: https://github.com/SciViews/learnitgrid, https://www.sciviews.org/learnitgrid/
 BugReports: https://github.com/SciViews/learnitgrid/issues
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 VignetteBuilder: knitr
 Encoding: UTF-8
 Language: en-US
-Suggests: 
-    spelling, knitr

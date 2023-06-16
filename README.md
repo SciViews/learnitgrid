@@ -8,7 +8,7 @@ This package is associated with the [{learnitdown}](https://github.com/SciViews/
 
 ## Installation
 
-You can also install the latest development version. Make sure you have the {remotes} R package installed:
+You can install the latest development version. Make sure you have the {remotes} R package installed:
 
 ``` r
 install.packages("remotes")
