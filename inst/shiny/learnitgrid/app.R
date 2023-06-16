@@ -1,8 +1,11 @@
+# Packages required -------------------------------------------------------
+
+library(shiny)
+library(shinydashboard)
 
 # Initialization ----------------------------------------------------------
 
 library("learnitgrid")
-
 
 # Global constants --------------------------------------------------------
 
@@ -220,7 +223,7 @@ body <- dashboardBody(
         box(title = "Notes de la classe", status = "info",
           shinycssloaders::withSpinner(plotOutput("score_plot"))),
         box(title = "Détails par étudiant", status = "info",
-          shinycssloaders::withSpinner(dataTableOutput("summary_tab")))
+          shinycssloaders::withSpinner(DT::dataTableOutput("summary_tab")))
       )
     ),
 
@@ -523,7 +526,7 @@ shinyServer <- function(input, output, session) {
       paste0(context$assignment[1],"-summary-", Sys.Date(), ".csv")
     },
     content = function(file) {
-      write$csv(download(), file)
+      data.io::write$csv(download(), file)
     }
   )
 
@@ -533,7 +536,7 @@ shinyServer <- function(input, output, session) {
       paste0(context$assignment[1],"-summary-", Sys.Date(), ".xlsx")
     },
     content = function(file) {
-      write$xlsx(download(), file)
+      data.io::write$xlsx(download(), file)
     }
   )
 
@@ -548,13 +551,13 @@ shinyServer <- function(input, output, session) {
     #x1 <- sum(!(x$missing > 1))
     x1 <- mean(x$score_20)
     chart::chart(data = x, ~ score_20) +
-      geom_histogram(bins = nrow(x)/2) +
-      geom_vline(xintercept = x1, color = "red", size = 1.5) +
-      labs(x = "Note des grilles completées [/20] - moyenne en rouge",
+      ggplot2::geom_histogram(bins = nrow(x)/2) +
+      ggplot2::geom_vline(xintercept = x1, color = "red", size = 1.5) +
+      ggplot2::labs(x = "Note des grilles completées [/20] - moyenne en rouge",
            y = "Dénombrement")
   })
 
-  output$summary_tab <- renderDataTable({
+  output$summary_tab <- DT::renderDataTable({
     req(input$correction)
     x <- summary_react()
     x1 <- x[, c("team", "student", "score_20", "missing")]
@@ -562,8 +565,8 @@ shinyServer <- function(input, output, session) {
 
     x1$team[x1$team == x1$student] <- "/"
 
-    formatStyle(
-      datatable(x1,
+    DT::formatStyle(
+      DT::datatable(x1,
         colnames = c('Equipe', 'Etudiant', 'Note [/20]','Entrées manquantes'),
         rownames = FALSE,
         selection = "single",
@@ -571,7 +574,7 @@ shinyServer <- function(input, output, session) {
       ),
       "score_20",
       target = "row",
-      backgroundColor = styleEqual(NA, "#FF4500")
+      backgroundColor = DT::styleEqual(NA, "#FF4500")
     )
   })
 
@@ -674,10 +677,10 @@ shinyServer <- function(input, output, session) {
         change_cum ~ author_date %col=% author)
     }
     p <- p +
-      geom_step(size = 1, na.rm = TRUE) +
-      geom_point(na.rm = TRUE) +
-      theme(legend.position = "bottom") +
-      labs(x = "Temps", y = "Somme cumulée des lignes modifiés par projet", color = "Auteur")
+      ggplot2::geom_step(size = 1, na.rm = TRUE) +
+      ggplot2::geom_point(na.rm = TRUE) +
+      ggplot2::theme(legend.position = "bottom") +
+      ggplot2::labs(x = "Temps", y = "Somme cumulée des lignes modifiés par projet", color = "Auteur")
 
     assign_infos <- context$assign_infos
     assign_time <- c(start = assign_infos$start[1], end = assign_infos$end[1])
@@ -690,10 +693,10 @@ shinyServer <- function(input, output, session) {
         min(stat_red$author_date),
         max(stat_red$author_date)))
       p <- p +
-        geom_vline(xintercept = assign_time,
+        ggplot2::geom_vline(xintercept = assign_time,
           linetype = 4, alpha = 0.8) +
-        xlim(plot_range) +
-        labs(caption =
+        ggplot2::xlim(plot_range) +
+        ggplot2::labs(caption =
         "Chaque point représente un commit. Les lignes verticales représentent le début et la fin de l'exercice.")
     }
 
@@ -709,11 +712,11 @@ shinyServer <- function(input, output, session) {
           reorder = FALSE, highlight = input$highlight, max_lines = max_lines)
     })
 
-  output$correction_table_grid <- renderDataTable({
+  output$correction_table_grid <- DT::renderDataTable({
     req(input$grid)
 
-    formatStyle(
-      datatable(
+    DT::formatStyle(
+      DT::datatable(
         correction_table_grid_react(),
         colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère',  'Contenu',
           'Graphique', 'Liens', 'Evaluateur', 'Étudiant/groupe'),
@@ -804,9 +807,9 @@ shinyServer <- function(input, output, session) {
           max_lines = max_lines))
   })
 
-  output$correction_table_criterion <- renderDataTable({
-    formatStyle(
-      datatable(
+  output$correction_table_criterion <- DT::renderDataTable({
+    DT::formatStyle(
+      DT::datatable(
         correction_table_criterion_react(),
         colnames = c('Max', 'Score&nbsp;Commentaire', 'Critère', 'Contenu',
           'Graphique', 'Liens', 'Evaluateur', 'Étudiant/groupe'),
@@ -935,7 +938,7 @@ shinyServer <- function(input, output, session) {
             corrs[pos, "score"] <- num_score
             corrs[pos, "comment"] <- comment
             corrs[pos, "evaluator"] <- input$evaluator
-            write$csv(corrs, corr_file)
+            data.io::write$csv(corrs, corr_file)
           }
         } else {# !is_ok
           msg <- paste0("ERROR: score '", score,
@@ -1013,7 +1016,7 @@ shinyServer <- function(input, output, session) {
             corrs[pos, "score"] <- num_score
             corrs[pos, "comment"] <- comment
             corrs[pos, "evaluator"] <- input$evaluator
-            write$csv(corrs, corr_file)
+            data.io::write$csv(corrs, corr_file)
           }
         } else {# !is_ok
           msg <- paste0("ERROR: score '", score,
