@@ -10,15 +10,15 @@ library("learnitgrid")
 # and default value (unset = ) locally
 data_dir          <- Sys.getenv("LEARNITGRID_DATA_DIR",
                        unset = getOption("learnintgrid.data.dir",
-                         path(getwd(), "www")))
+                         fs::path(getwd(), "www")))
 root_dir        <- dir_path_check(data_dir)
 
 # Possibly input these values from a learnitgrid_config.R either in root_dir
 # or (if not present) in www
-config_file <- path(root_dir, "learnitgrid_config.R")
-if (!file_exists(config_file))
-  config_file <- path("www", "learnitgrid_config.R")
-if (file_exists(config_file)) {
+config_file <- fs::path(root_dir, "learnitgrid_config.R")
+if (!fs::file_exists(config_file))
+  config_file <- fs::path("www", "learnitgrid_config.R")
+if (fs::file_exists(config_file)) {
   message("Sourcing config file ", config_file, "...")
   source(config_file, encoding = "UTF-8") #, echo = TRUE)
 } else {
@@ -94,7 +94,7 @@ assign_file       <- file_path_check(root_dir, assign_filename)
 assignments       <- suppressMessages(read(assign_file))
 order             <- NULL     # The order for the table by criterion
 
-course_dirs <- dir_ls(base_corr_dir, type = "directory")
+course_dirs <- fs::dir_ls(base_corr_dir, type = "directory")
 if (!length(course_dirs))
   stop("Il n'y a pas encore de grilles de correction disponibles. ",
     "Créez-en avant de relancer cette application...")
@@ -106,7 +106,7 @@ courses_list <- c(courses_aliases,
 courses_list <- courses_list[courses_list %in% courses]
 
 # TODO: get login of user if app is run in RStudio Connect
-default_evaluator <-  try(gh_whoami()$login, silent = TRUE)
+default_evaluator <-  try(gh::gh_whoami()$login, silent = TRUE)
 if (inherits(default_evaluator, 'try-error') || is.null(default_evaluator)) {
   default_evaluator <- ""
 } else {
@@ -347,10 +347,10 @@ shinyServer <- function(input, output, session) {
     course <- courses_list[input$course]
     x <- grep(course, course_dirs, value = TRUE)
     # Create a vector with de directory path
-    res <- dir_ls(x, type = "directory")
+    res <- fs::dir_ls(x, type = "directory")
     names(res) <- basename(res)
     attr(res, "ntot") <- length(res)
-    #message(glue('
+    #message(glue::glue('
     #========================
     ##1 corr_dir1() = The list of directories by course.
     #{attr(res, "ntot")} folder(s) are to correct.
@@ -383,15 +383,15 @@ shinyServer <- function(input, output, session) {
     input$refresh
 
     course <- courses_list[input$course]
-    dir <- path(base_corr_dir, course, input$correction, "summary.rds")
+    dir <- fs::path(base_corr_dir, course, input$correction, "summary.rds")
 
-    if (file_exists(dir)) {
+    if (fs::file_exists(dir)) {
       res <- suppressMessages(read(dir))
     } else {
-      check_grids(path(base_corr_dir, course, input$correction))
+      check_grids(fs::path(base_corr_dir, course, input$correction))
       res <- suppressMessages(read(dir))
     }
-    #message(glue('
+    #message(glue::glue('
     #========================
     ##1 summary_react .
     #{dim(res)}
@@ -403,7 +403,7 @@ shinyServer <- function(input, output, session) {
   output$last_summary <- renderText({
     #req(input$correction)
     x1 <- attr(summary_react(), "date")
-    glue('Dernière mise à jour : {x1}.')
+    glue::glue('Dernière mise à jour : {x1}.')
   })
 
   correction_set <- reactive({
@@ -411,7 +411,7 @@ shinyServer <- function(input, output, session) {
     context <- context_react()
     ref <- classroom_urls[names(classroom_urls) ==
         substr(input$correction, 1, 1)]
-    ref1 <- path(ref, "assignments",context$assignment[1])
+    ref1 <- fs::path(ref, "assignments",context$assignment[1])
     assignment_set <- input$correction
     curr_assign <- sub("^(.+)_([^_]+)$", "\\1", assignment_set)
     curr_set <- sub("^(.+)_([^_]+)$", "\\2", assignment_set)
@@ -472,7 +472,7 @@ shinyServer <- function(input, output, session) {
     } else {
       col <- "red"
     }
-    res <- glue("{completed} ({ntot - completed})")
+    res <- glue::glue("{completed} ({ntot - completed})")
     valueBox(res, "Grilles terminées (à faire)", icon = icon("check"),
       color = col)
   })
@@ -491,10 +491,10 @@ shinyServer <- function(input, output, session) {
         labels = c("red", "orange", "green"))
     }
     if (x2 != 0) {
-      res <- glue("{x1}/{x3} ({x2})")
+      res <- glue::glue("{x1}/{x3} ({x2})")
       res1 <- "Succès (non évalué)"
     } else {
-      res <- glue("{x1}/{x3}")
+      res <- glue::glue("{x1}/{x3}")
       res1 <- "Succès"
     }
     valueBox(res, res1, icon = icon("user-graduate"), color = col)
@@ -504,7 +504,7 @@ shinyServer <- function(input, output, session) {
     x <- summary_react()
     x1 <- round(mean(x$score_20, na.rm = TRUE),1)
     x2 <- round(median(x$score_20, na.rm = TRUE),1)
-    res <- glue("{x1} ({x2})")
+    res <- glue::glue("{x1} ({x2})")
     valueBox(res, "Moyenne (Médiane) [/20]", icon = icon("equals"),
       color = "blue")
   })
@@ -539,7 +539,7 @@ shinyServer <- function(input, output, session) {
 
   observeEvent(input$refresh, {
     course <- courses_list[input$course]
-    check_grids(path(base_corr_dir, course, input$correction))
+    check_grids(fs::path(base_corr_dir, course, input$correction))
   })
 
   output$score_plot <- renderPlot({
@@ -547,7 +547,7 @@ shinyServer <- function(input, output, session) {
     x <- summary_react()
     #x1 <- sum(!(x$missing > 1))
     x1 <- mean(x$score_20)
-    chart(data = x, ~ score_20) +
+    chart::chart(data = x, ~ score_20) +
       geom_histogram(bins = nrow(x)/2) +
       geom_vline(xintercept = x1, color = "red", size = 1.5) +
       labs(x = "Note des grilles completées [/20] - moyenne en rouge",
@@ -667,10 +667,10 @@ shinyServer <- function(input, output, session) {
     stat_red <- x[tolower(x$github_repository) %in% tolower(input$grid), ]
 
     if (input$contri_split == "séparer") {
-      p <- chart(data = stat_red,
+      p <- chart::chart(data = stat_red,
         change_cum1 ~ author_date %col=% author | extension)
     } else {
-      p <- chart(data = stat_red,
+      p <- chart::chart(data = stat_red,
         change_cum ~ author_date %col=% author)
     }
     p <- p +
