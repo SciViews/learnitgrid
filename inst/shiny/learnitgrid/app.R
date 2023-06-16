@@ -88,6 +88,10 @@ if (!exists("git_stats_type"))
 if (!exists("git_stats_tz"))
   git_stats_tz    <- "UTC" # Your own tz, e.g., "Europe/Paris"
 
+# Read csv files without issuing messages
+read <- function(file) {
+  suppressMessages(data.io::read(file))
+}
 
 # Global objects ----------------------------------------------------------
 
@@ -145,7 +149,6 @@ sort_table <- function(x, is_content = attr(x, "is_content")) {
   attr(x, "order") <- order
   x
 }
-
 
 # The Shiny app UI --------------------------------------------------------
 
