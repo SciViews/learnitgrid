@@ -23,11 +23,11 @@ Make sure a directory exists, or create it
 }
 \section{Functions}{
 \itemize{
-\item \code{dir_path_check()}: Check that a directory exists.
+\item \code{dir_path_check}: Check that a directory exists.
 
-\item \code{file_path_check()}: Check that a file exists.
-
+\item \code{file_path_check}: Check that a file exists.
 }}
+
 \examples{
 test_path <- dir_path_create(tempdir(), "dir_path_create_test", "subfolder")
 test_path

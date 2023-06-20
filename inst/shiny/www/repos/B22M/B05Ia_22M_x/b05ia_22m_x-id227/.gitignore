@@ -1,10 +1,9 @@
-# History files
+ory files
 .Rhistory
 .Rapp.history
 
 # Session Data files
 .RData
-.RDataTmp
 
 # User-specific files
 .Ruserdata
@@ -32,21 +31,22 @@ vignettes/*.pdf
 *_cache/
 /cache/
 
-# Temporary files created by R markdown
+# Temporary files created by R Markdown
 *.utf8.md
 *.knit.md
 
 # R Environment Variables
 .Renviron
 
-# pkgdown site
-docs/
+# README
+README.html
 
-# translation temp files
-po/*~
+# html and pdf in docs
+docs/*.html
+docs/*.pdf
+docs/*.nb.html
 
-# RStudio Connect folder
-rsconnect/
-
-# Mac files
+# OS-specific files
 .DS_Store
+
+test/**

@@ -25,6 +25,6 @@ html tags.
 }
 \section{Functions}{
 \itemize{
-\item \code{www_relative()}: Strip www/ in front of the relative paths for a Shiny app.
-
+\item \code{www_relative}: Strip www/ in front of the relative paths for a Shiny app.
 }}
+
