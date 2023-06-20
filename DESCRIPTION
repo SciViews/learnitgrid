@@ -10,7 +10,8 @@ Authors@R: c(
   email = "phgrosjean@sciviews.org",
   comment = c(ORCID = "0000-0002-2694-9471")),
   person("Guyliann", "Engels", role = "aut",
-  email = "guyliann.engels@umons.ac.be"))
+  email = "guyliann.engels@umons.ac.be", 
+  comment = c(ORCID = "0000-0001-9514-1014")))
 Maintainer: Philippe Grosjean <phgrosjean@sciviews.org>
 Depends: R (>= 4.1.0)
 Imports: shiny, shinydashboard, parsermd, DT, data.io, chart, fs, glue,
